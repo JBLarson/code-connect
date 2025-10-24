@@ -1,28 +1,45 @@
 # backend/middleware/auth_middleware.py
+
 import jwt
+import os
 from functools import wraps
 from flask import request, jsonify
-import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def verify_token(f):
+    """Middleware to verify Supabase JWT token"""
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        auth_header = request.headers.get('Authorization', '')
         
-        if not token:
+        if not auth_header or not auth_header.startswith('Bearer '):
             return jsonify({'error': 'No token provided'}), 401
         
+        token = auth_header.replace('Bearer ', '')
+        
         try:
-            # Verify Supabase JWT
+            # Decode and verify Supabase JWT
             payload = jwt.decode(
                 token,
                 os.getenv('SUPABASE_JWT_SECRET'),
                 algorithms=['HS256'],
                 audience='authenticated'
             )
-            request.user_id = payload['sub']  # Supabase user ID
+            
+            # Attach user ID to request object
+            request.user_id = payload['sub']
+            
             return f(*args, **kwargs)
-        except jwt.InvalidTokenError:
-            return jsonify({'error': 'Invalid token'}), 401
+        
+        except jwt.ExpiredSignatureError:
+            return jsonify({'error': 'Token has expired'}), 401
+        
+        except jwt.InvalidTokenError as e:
+            return jsonify({'error': f'Invalid token: {str(e)}'}), 401
+        
+        except Exception as e:
+            return jsonify({'error': f'Authentication failed: {str(e)}'}), 401
     
     return decorated

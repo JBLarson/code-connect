@@ -7,6 +7,9 @@ from flask_migrate import Migrate
 from models import db
 from config import Config
 
+from routes.profile import profile_bp
+
+
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
@@ -16,9 +19,12 @@ def create_app():
     CORS(app)
     migrate = Migrate(app, db)
     
-    # Register blueprints (routes)
-    # from routes.projects import projects_bp
-    # app.register_blueprint(projects_bp, url_prefix='/api/projects')
+    app.register_blueprint(profile_bp, url_prefix='/api/profile')
+    
+    # Health check
+    @app.route('/health')
+    def health():
+        return {'status': 'ok'}
     
     return app
 

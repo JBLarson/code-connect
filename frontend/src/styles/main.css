@@ -341,6 +341,49 @@ a:hover {
   margin-bottom: var(--spacing-lg);
 }
 
+
+
+
+
+
+
+.auth-container {
+  max-width: 400px;
+  margin: var(--spacing-3xl) auto;
+  padding: var(--spacing-2xl);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-lg);
+}
+
+.auth-form {
+  margin-top: var(--spacing-xl);
+}
+
+.auth-toggle {
+  text-align: center;
+  margin-top: var(--spacing-lg);
+  color: var(--color-text-secondary);
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: inherit;
+  padding: 0;
+}
+
+.link-button:hover {
+  color: var(--color-primary-dark);
+}
+
+
+
+
+
+
 /* ===== Responsive ===== */
 @media (max-width: 768px) {
   :root {

@@ -55,10 +55,9 @@ export default function Home() {
         </p>
         {!user && (
           <div className="cta-buttons">
-            <button onClick={() => navigate('/auth')} className="btn btn-primary">
-              Get Started
-            </button>
-          </div>
+          <button onClick={() => navigate('/auth')} className="btn btn-primary">
+            Get Started
+          </button>          </div>
         )}
       </header>
 
