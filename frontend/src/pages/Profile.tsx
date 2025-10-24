@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
-import EditProfileModal from '../components/profile/EditProfileModal'
+import EditProfileModal from '../components/modals/EditProfileModal'
 import '../styles/profile.css'
 
 interface UserProfile {

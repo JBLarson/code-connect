@@ -1,8 +1,9 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import Home from './pages/Home'
-import Profile from './pages/Profile'
 import Auth from './pages/Auth'
+import Profile from './pages/Profile'
+import Projects from './pages/Projects'
 
 function App() {
   return (
@@ -15,7 +16,9 @@ function App() {
           <Route path="/auth" element={<Auth />} />
 
           <Route path="/profile" element={<Profile />} />
-        
+
+          <Route path="/projects" element={<Projects />} />
+
         
         </Routes>
       </BrowserRouter>
