@@ -1,39 +1,28 @@
-# middleware/auth_middleware.py
+# backend/middleware/auth_middleware.py
+import jwt
 from functools import wraps
 from flask import request, jsonify
-import jwt
 import os
 
-def require_auth(f):
+def verify_token(f):
     @wraps(f)
-    def decorated_function(*args, **kwargs):
-        auth_header = request.headers.get('Authorization')
-        if not auth_header or not auth_header.startswith('Bearer '):
-            return jsonify({'error': 'Missing or invalid authorization'}), 401
+    def decorated(*args, **kwargs):
+        token = request.headers.get('Authorization', '').replace('Bearer ', '')
         
-        token = auth_header.split(' ')[1]
+        if not token:
+            return jsonify({'error': 'No token provided'}), 401
         
         try:
+            # Verify Supabase JWT
             payload = jwt.decode(
                 token,
                 os.getenv('SUPABASE_JWT_SECRET'),
                 algorithms=['HS256'],
                 audience='authenticated'
             )
-            
-            user_id = payload.get('sub')
-            
-            from models import UserProfile
-            current_user = UserProfile.query.get(user_id)
-            
-            if not current_user:
-                return jsonify({'error': 'User not found'}), 404
-            
-            return f(current_user, *args, **kwargs)
-            
-        except jwt.ExpiredSignatureError:
-            return jsonify({'error': 'Token expired'}), 401
+            request.user_id = payload['sub']  # Supabase user ID
+            return f(*args, **kwargs)
         except jwt.InvalidTokenError:
             return jsonify({'error': 'Invalid token'}), 401
     
-    return decorated_function
+    return decorated
