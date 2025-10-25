@@ -4,7 +4,11 @@ from middleware.auth_middleware import verify_token
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import desc
 
+
+
 projects_bp = Blueprint('projects', __name__)
+
+
 
 @projects_bp.route('', methods=['GET'])
 def get_projects():
@@ -44,19 +48,31 @@ def get_projects():
         return jsonify({'error': str(e)}), 500
 
 
+
+
+
 @projects_bp.route('/<int:project_id>', methods=['GET'])
 def get_project(project_id):
-    """Get single project by ID"""
+    """Get single project by ID with additional details"""
     try:
         project = Project.query.get(project_id)
         
         if not project:
             return jsonify({'error': 'Project not found'}), 404
         
-        return jsonify(project.to_dict(include_creator=True)), 200
+        # Get interest count
+        interest_count = Interest.query.filter_by(project_id=project_id).count()
+        
+        project_data = project.to_dict(include_creator=True)
+        project_data['interest_count'] = interest_count
+        
+        return jsonify(project_data), 200
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+
 
 
 @projects_bp.route('', methods=['POST'])
@@ -113,6 +129,9 @@ def create_project():
         return jsonify({'error': str(e)}), 500
 
 
+
+
+
 @projects_bp.route('/<int:project_id>', methods=['PUT'])
 @verify_token
 def update_project(project_id):
@@ -163,6 +182,9 @@ def update_project(project_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+
+
 
 
 @projects_bp.route('/<int:project_id>', methods=['DELETE'])

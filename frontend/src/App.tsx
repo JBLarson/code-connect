@@ -4,6 +4,7 @@ import Home from './pages/Home'
 import Auth from './pages/Auth'
 import Profile from './pages/Profile'
 import Projects from './pages/Projects'
+import ProjectDetail from './pages/ProjectDetail'
 
 function App() {
   return (
@@ -18,6 +19,8 @@ function App() {
           <Route path="/profile" element={<Profile />} />
 
           <Route path="/projects" element={<Projects />} />
+
+          <Route path="/projects/:id" element={<ProjectDetail />} />
 
         
         </Routes>
