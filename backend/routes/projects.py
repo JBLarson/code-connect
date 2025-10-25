@@ -203,6 +203,25 @@ def delete_project(project_id):
 
 
 
+
+
+
+@projects_bp.route('/my-projects', methods=['GET'])
+@verify_token
+def get_my_projects():
+    """Get all projects created by the current user"""
+    try:
+        projects = Project.query.filter_by(creator_id=request.user_id).order_by(desc(Project.created_at)).all()
+        
+        return jsonify([p.to_dict(include_creator=False) for p in projects]), 200
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+
+
+
 @projects_bp.route('/user/<uuid:user_id>', methods=['GET'])
 def get_user_projects(user_id):
     """Get all projects created by a specific user (public)"""
