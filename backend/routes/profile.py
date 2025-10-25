@@ -25,7 +25,7 @@ def get_profile():
 def get_profile_by_id(user_id):
     """Get any user's profile (public view)"""
     try:
-        profile = UserProfile.query.get(user_id)
+        profile = UserProfile.query.get(str(user_id))
         
         if not profile:
             return jsonify({'error': 'Profile not found'}), 404
