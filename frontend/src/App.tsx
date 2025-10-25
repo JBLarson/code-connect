@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
+import Navbar from './components/layout/Navbar'
 import Home from './pages/Home'
 import Auth from './pages/Auth'
 import Profile from './pages/Profile'
@@ -10,6 +11,8 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <Navbar />
+
         <Routes>
 
           <Route path="/" element={<Home />} />
