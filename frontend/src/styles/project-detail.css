@@ -248,19 +248,60 @@
     grid-template-columns: 1fr;
   }
 
-  .project-sidebar {
-    order: -1;
-  }
-
   .project-title-section {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .project-title-section h1 {
+    font-size: var(--font-size-3xl);
   }
 
   .owner-actions {
     width: 100%;
+    flex-direction: column;
   }
 
   .owner-actions button {
-    flex: 1;
+    width: 100%;
+  }
+
+  .btn-large {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .project-detail-content {
+    gap: var(--spacing-lg);
+  }
+
+  .project-main {
+    gap: var(--spacing-lg);
+  }
+
+  .project-description-section,
+  .project-tech-section,
+  .project-repo-section,
+  .interest-section,
+  .sidebar-section {
+    padding: var(--spacing-md);
+  }
+
+  .project-title-section h1 {
+    font-size: var(--font-size-2xl);
+  }
+
+  .tech-stack-large {
+    gap: var(--spacing-xs);
+  }
+
+  .tech-tag-large {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-sm);
+  }
+
+  .project-badges {
+    flex-wrap: wrap;
   }
 }

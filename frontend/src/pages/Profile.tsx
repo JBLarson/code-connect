@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { useParams, useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import EditProfileModal from '../components/modals/EditProfileModal'
 import '../styles/profile.css'
@@ -16,22 +17,44 @@ interface UserProfile {
   created_at: string
 }
 
+interface Project {
+  id: number
+  title: string
+  description: string
+  tech_stack: string[]
+  location: string
+  skill_level: string
+  time_commitment: string
+  status: string
+  created_at: string
+}
+
 export default function Profile() {
+  const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
+  const [projectsLoading, setProjectsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
 
+  // Determine if viewing own profile or someone else's
+  const isOwnProfile = !id || (user && id === user.id)
+
   useEffect(() => {
     fetchProfile()
-  }, [])
+    fetchUserProjects()
+  }, [id])
 
   const fetchProfile = async () => {
     try {
       setLoading(true)
       setError(null)
-      const response = await api.get('/api/profile')
+      
+      const endpoint = isOwnProfile ? '/api/profile' : `/api/profile/${id}`
+      const response = await api.get(endpoint)
       setProfile(response.data)
     } catch (err: any) {
       if (err.response?.status === 404) {
@@ -42,6 +65,26 @@ export default function Profile() {
       console.error('Error fetching profile:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchUserProjects = async () => {
+    try {
+      setProjectsLoading(true)
+      let endpoint
+      
+      if (isOwnProfile) {
+        endpoint = '/api/projects/my-projects'
+      } else {
+        endpoint = `/api/projects/user/${id}`
+      }
+      
+      const response = await api.get(endpoint)
+      setProjects(response.data)
+    } catch (err) {
+      console.error('Error fetching user projects:', err)
+    } finally {
+      setProjectsLoading(false)
     }
   }
 
@@ -79,6 +122,31 @@ export default function Profile() {
     }
   }
 
+  const getSkillLevelColor = (level: string) => {
+    switch (level) {
+      case 'beginner': return 'skill-beginner'
+      case 'intermediate': return 'skill-intermediate'
+      case 'advanced': return 'skill-advanced'
+      default: return ''
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'open': return 'status-open'
+      case 'in_progress': return 'status-progress'
+      case 'completed': return 'status-completed'
+      case 'cancelled': return 'status-cancelled'
+      default: return ''
+    }
+  }
+
+  const formatStatus = (status: string) => {
+    return status.split('_').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ')
+  }
+
   if (loading) {
     return (
       <div className="container">
@@ -87,7 +155,7 @@ export default function Profile() {
     )
   }
 
-  if (error === 'profile_not_found') {
+  if (error === 'profile_not_found' && isOwnProfile) {
     return (
       <div className="container">
         <div className="profile-setup">
@@ -114,7 +182,9 @@ export default function Profile() {
   if (error) {
     return (
       <div className="container">
-        <div className="error-state">{error}</div>
+        <div className="error-state">
+          {error === 'profile_not_found' ? 'Profile not found' : error}
+        </div>
       </div>
     )
   }
@@ -139,14 +209,17 @@ export default function Profile() {
               {profile.location && (
                 <p className="location">📍 {profile.location}</p>
               )}
+              <p className="text-muted">Member since: {new Date(profile.created_at).toLocaleDateString()}</p>
             </div>
           </div>
-          <button 
-            onClick={() => setShowEditModal(true)} 
-            className="btn btn-secondary"
-          >
-            Edit Profile
-          </button>
+          {isOwnProfile && (
+            <button 
+              onClick={() => setShowEditModal(true)} 
+              className="btn btn-secondary"
+            >
+              Edit Profile
+            </button>
+          )}
         </div>
 
         <div className="profile-sections">
@@ -167,6 +240,50 @@ export default function Profile() {
               </div>
             </section>
           )}
+
+          <section className="profile-section">
+            <h3>Projects</h3>
+            {projectsLoading ? (
+              <p className="text-muted">Loading projects...</p>
+            ) : projects.length === 0 ? (
+              <p className="text-muted">
+                {isOwnProfile ? "You haven't created any projects yet." : "No projects yet."}
+              </p>
+            ) : (
+              <div className="profile-projects-grid">
+                {projects.map(project => (
+                  <article 
+                    key={project.id} 
+                    className="profile-project-card"
+                    onClick={() => navigate(`/projects/${project.id}`)}
+                  >
+                    <div className="profile-project-header">
+                      <h4>{project.title}</h4>
+                      <div className="profile-project-badges">
+                        <span className={`badge-small ${getSkillLevelColor(project.skill_level)}`}>
+                          {project.skill_level}
+                        </span>
+                        <span className={`badge-small ${getStatusColor(project.status)}`}>
+                          {formatStatus(project.status)}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="profile-project-description">
+                      {project.description.slice(0, 100)}...
+                    </p>
+                    <div className="profile-project-tech">
+                      {project.tech_stack.slice(0, 3).map((tech, idx) => (
+                        <span key={idx} className="tech-tag-small">{tech}</span>
+                      ))}
+                      {project.tech_stack.length > 3 && (
+                        <span className="tech-tag-small">+{project.tech_stack.length - 3}</span>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
 
           {(profile.github_url || profile.linkedin_url) && (
             <section className="profile-section">
@@ -201,12 +318,6 @@ export default function Profile() {
               </div>
             </section>
           )}
-
-          <section className="profile-section">
-            <h3>Account</h3>
-            <p className="text-muted">Email: {user?.email}</p>
-            <p className="text-muted">Member since: {new Date(profile.created_at).toLocaleDateString()}</p>
-          </section>
         </div>
       </div>
 

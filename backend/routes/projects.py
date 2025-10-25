@@ -200,3 +200,16 @@ def delete_project(project_id):
         # Check if user is the creator
     except Exception as uh:
         print(uh)
+
+
+
+@projects_bp.route('/user/<uuid:user_id>', methods=['GET'])
+def get_user_projects(user_id):
+    """Get all projects created by a specific user (public)"""
+    try:
+        projects = Project.query.filter_by(creator_id=user_id).order_by(desc(Project.created_at)).all()
+        
+        return jsonify([p.to_dict(include_creator=False) for p in projects]), 200
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
