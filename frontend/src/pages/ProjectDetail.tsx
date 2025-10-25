@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
 import EditProjectModal from '../components/modals/EditProjectModal'
+import ExpressInterestModal from '../components/modals/ExpressInterestModal'
 import '../styles/project-detail.css'
 
 interface Project {
@@ -24,6 +25,20 @@ interface Project {
   }
 }
 
+interface Interest {
+  id: number
+  developer_id: string
+  message: string
+  status: string
+  created_at: string
+  developer?: {
+    id: string
+    name: string
+    location: string
+    skills: string[]
+  }
+}
+
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
@@ -32,21 +47,55 @@ export default function ProjectDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showInterestModal, setShowInterestModal] = useState(false)
+  const [hasInterest, setHasInterest] = useState(false)
+  const [userInterest, setUserInterest] = useState<Interest | null>(null)
+  const [interests, setInterests] = useState<Interest[]>([])
+  const [showInterests, setShowInterests] = useState(false)
 
   useEffect(() => {
     fetchProject()
-  }, [id])
+    if (user) {
+      checkUserInterest()
+    }
+  }, [id, user])
 
   const fetchProject = async () => {
     try {
       setLoading(true)
       const response = await api.get(`/api/projects/${id}`)
       setProject(response.data)
+      
+      // If user is owner, fetch interests
+      if (user && response.data.creator && user.id === response.data.creator.id) {
+        fetchProjectInterests()
+      }
     } catch (err: any) {
       setError(err.response?.status === 404 ? 'Project not found' : 'Failed to load project')
       console.error('Error fetching project:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const checkUserInterest = async () => {
+    try {
+      const response = await api.get(`/api/interests/check/${id}`)
+      setHasInterest(response.data.has_interest)
+      if (response.data.has_interest) {
+        setUserInterest(response.data.interest)
+      }
+    } catch (err) {
+      console.error('Error checking interest:', err)
+    }
+  }
+
+  const fetchProjectInterests = async () => {
+    try {
+      const response = await api.get(`/api/interests/project/${id}`)
+      setInterests(response.data)
+    } catch (err) {
+      console.error('Error fetching interests:', err)
     }
   }
 
@@ -74,8 +123,39 @@ export default function ProjectDetail() {
       navigate('/auth')
       return
     }
-    // TODO: Implement interest functionality
-    alert('Interest functionality coming soon!')
+    setShowInterestModal(true)
+  }
+
+  const handleInterestSuccess = () => {
+    setHasInterest(true)
+    fetchProject() // Refresh to update interest count
+    checkUserInterest()
+  }
+
+  const handleWithdrawInterest = async () => {
+    if (!userInterest || !window.confirm('Are you sure you want to withdraw your interest?')) {
+      return
+    }
+
+    try {
+      await api.delete(`/api/interests/${userInterest.id}`)
+      setHasInterest(false)
+      setUserInterest(null)
+      fetchProject() // Refresh to update interest count
+    } catch (err) {
+      alert('Failed to withdraw interest')
+      console.error('Error withdrawing interest:', err)
+    }
+  }
+
+  const handleUpdateInterestStatus = async (interestId: number, status: string) => {
+    try {
+      await api.put(`/api/interests/${interestId}`, { status })
+      fetchProjectInterests() // Refresh interests list
+    } catch (err) {
+      alert('Failed to update interest status')
+      console.error('Error updating interest:', err)
+    }
   }
 
   if (loading) {
@@ -117,6 +197,15 @@ export default function ProjectDetail() {
       case 'in_progress': return 'status-progress'
       case 'completed': return 'status-completed'
       case 'cancelled': return 'status-cancelled'
+      default: return ''
+    }
+  }
+
+  const getInterestStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'interest-pending'
+      case 'accepted': return 'interest-accepted'
+      case 'declined': return 'interest-declined'
       default: return ''
     }
   }
@@ -195,13 +284,116 @@ export default function ProjectDetail() {
 
             {!isOwner && isOpen && (
               <div className="interest-section">
-                <button onClick={handleExpressInterest} className="btn btn-primary btn-large">
-                  Express Interest
-                </button>
-                {project.interest_count !== undefined && project.interest_count > 0 && (
-                  <p className="interest-count">
-                    {project.interest_count} {project.interest_count === 1 ? 'person has' : 'people have'} expressed interest
-                  </p>
+                {hasInterest ? (
+                  <div className="interest-status">
+                    <div className="interest-status-info">
+                      <span className={`badge ${getInterestStatusColor(userInterest?.status || 'pending')}`}>
+                        Your Interest: {userInterest?.status || 'pending'}
+                      </span>
+                      {userInterest?.status === 'pending' && (
+                        <p className="text-muted">The project owner will review your interest soon.</p>
+                      )}
+                      {userInterest?.status === 'accepted' && (
+                        <p className="text-success">Congratulations! Your interest was accepted. The project owner should reach out to you soon.</p>
+                      )}
+                      {userInterest?.status === 'declined' && (
+                        <p className="text-muted">Your interest was declined. Feel free to browse other projects!</p>
+                      )}
+                    </div>
+                    {userInterest?.status === 'pending' && (
+                      <button onClick={handleWithdrawInterest} className="btn btn-secondary">
+                        Withdraw Interest
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <button onClick={handleExpressInterest} className="btn btn-primary btn-large">
+                      Express Interest
+                    </button>
+                    {project.interest_count !== undefined && project.interest_count > 0 && (
+                      <p className="interest-count">
+                        {project.interest_count} {project.interest_count === 1 ? 'person has' : 'people have'} expressed interest
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {isOwner && interests.length > 0 && (
+              <div className="interests-list-section">
+                <div className="interests-header">
+                  <h2>Interested Developers ({interests.length})</h2>
+                  <button 
+                    onClick={() => setShowInterests(!showInterests)}
+                    className="btn btn-secondary btn-small"
+                  >
+                    {showInterests ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+
+                {showInterests && (
+                  <div className="interests-list">
+                    {interests.map(interest => (
+                      <div key={interest.id} className="interest-card">
+                        <div className="interest-card-header">
+                          <div className="interest-developer">
+                            <div className="developer-avatar-small">
+                              {interest.developer?.name?.charAt(0).toUpperCase() || 'A'}
+                            </div>
+                            <div>
+                              <h4 
+                                onClick={() => navigate(`/profile/${interest.developer_id}`)}
+                                className="developer-name-link"
+                              >
+                                {interest.developer?.name || 'Anonymous'}
+                              </h4>
+                              {interest.developer?.location && (
+                                <p className="text-muted small">📍 {interest.developer.location}</p>
+                              )}
+                            </div>
+                          </div>
+                          <span className={`badge ${getInterestStatusColor(interest.status)}`}>
+                            {interest.status}
+                          </span>
+                        </div>
+
+                        {interest.message && (
+                          <p className="interest-message">{interest.message}</p>
+                        )}
+
+                        {interest.developer?.skills && interest.developer.skills.length > 0 && (
+                          <div className="interest-skills">
+                            {interest.developer.skills.slice(0, 5).map((skill, idx) => (
+                              <span key={idx} className="tech-tag-small">{skill}</span>
+                            ))}
+                          </div>
+                        )}
+
+                        {interest.status === 'pending' && (
+                          <div className="interest-actions">
+                            <button 
+                              onClick={() => handleUpdateInterestStatus(interest.id, 'accepted')}
+                              className="btn btn-primary btn-small"
+                            >
+                              Accept
+                            </button>
+                            <button 
+                              onClick={() => handleUpdateInterestStatus(interest.id, 'declined')}
+                              className="btn btn-secondary btn-small"
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        )}
+
+                        <p className="interest-date">
+                          Expressed interest {new Date(interest.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
@@ -256,6 +448,15 @@ export default function ProjectDetail() {
           project={project}
           onClose={() => setShowEditModal(false)}
           onSave={handleProjectUpdate}
+        />
+      )}
+
+      {showInterestModal && (
+        <ExpressInterestModal
+          projectId={project.id}
+          projectTitle={project.title}
+          onClose={() => setShowInterestModal(false)}
+          onSuccess={handleInterestSuccess}
         />
       )}
     </div>

@@ -9,6 +9,7 @@ from config import Config
 
 from routes.profile import profile_bp
 from routes.projects import projects_bp
+from routes.interests import interests_bp
 
 
 def create_app():
@@ -30,6 +31,7 @@ def create_app():
     
     app.register_blueprint(profile_bp, url_prefix='/api/profile')
     app.register_blueprint(projects_bp, url_prefix='/api/projects')
+    app.register_blueprint(interests_bp, url_prefix='/api/interests')
 
     # Health check
     @app.route('/health')
