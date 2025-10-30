@@ -198,10 +198,18 @@ def delete_project(project_id):
             return jsonify({'error': 'Project not found'}), 404
         
         # Check if user is the creator
-    except Exception as uh:
-        print(uh)
-
-
+        if str(project.creator_id) != request.user_id:
+            return jsonify({'error': 'You can only delete your own projects'}), 403
+        
+        # Proceed with deletion
+        db.session.delete(project)
+        db.session.commit()
+        
+        return jsonify({'message': 'Project deleted successfully'}), 200
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'An error occurred: {str(e)}'}), 500
 
 
 
