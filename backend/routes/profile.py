@@ -8,14 +8,15 @@ profile_bp = Blueprint('profile', __name__)
 @profile_bp.route('', methods=['GET'])
 @verify_token
 def get_profile():
-    """Get current user's profile"""
+    """Get current user's profile (includes contact info)"""
     try:
         profile = UserProfile.query.get(request.user_id)
         
         if not profile:
             return jsonify({'error': 'Profile not found'}), 404
         
-        return jsonify(profile.to_dict()), 200
+        # Pass include_contact=True for the user's own profile
+        return jsonify(profile.to_dict(include_contact=True)), 200
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -23,14 +24,15 @@ def get_profile():
 
 @profile_bp.route('/<uuid:user_id>', methods=['GET'])
 def get_profile_by_id(user_id):
-    """Get any user's profile (public view)"""
+    """Get any user's profile (public view, no contact info)"""
     try:
         profile = UserProfile.query.get(str(user_id))
         
         if not profile:
             return jsonify({'error': 'Profile not found'}), 404
         
-        return jsonify(profile.to_dict()), 200
+        # Pass include_contact=False for public profiles
+        return jsonify(profile.to_dict(include_contact=False)), 200
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -61,13 +63,14 @@ def create_profile():
             bio=data.get('bio'),
             skills=data.get('skills', []),
             github_url=data.get('github_url'),
-            linkedin_url=data.get('linkedin_url')
+            linkedin_url=data.get('linkedin_url'),
+            contact_email=data.get('contact_email') # <-- NEW
         )
         
         db.session.add(profile)
         db.session.commit()
         
-        return jsonify(profile.to_dict()), 201
+        return jsonify(profile.to_dict(include_contact=True)), 201
     
     except IntegrityError:
         db.session.rollback()
@@ -95,14 +98,14 @@ def update_profile():
             return jsonify({'error': 'Valid role is required (developer, idea_generator, or both)'}), 400
         
         # Update allowed fields
-        allowed_fields = ['role', 'name', 'location', 'bio', 'skills', 'github_url', 'linkedin_url']
+        allowed_fields = ['role', 'name', 'location', 'bio', 'skills', 'github_url', 'linkedin_url', 'contact_email'] # <-- ADDED
         for field in allowed_fields:
             if field in data:
                 setattr(profile, field, data[field])
         
         db.session.commit()
         
-        return jsonify(profile.to_dict()), 200
+        return jsonify(profile.to_dict(include_contact=True)), 200
     
     except Exception as e:
         db.session.rollback()

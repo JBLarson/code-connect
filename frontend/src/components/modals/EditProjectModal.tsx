@@ -2,23 +2,7 @@ import { useState } from 'react'
 import api from '../../services/api'
 import '../../styles/modal.css'
 
-interface Project {
-  id: number
-  title: string
-  description: string
-  tech_stack: string[]
-  location: string
-  skill_level: string
-  time_commitment: string
-  status: string
-  repo_url?: string
-  created_at: string
-  creator?: {
-    id: string
-    name: string
-    location: string
-  }
-}
+import type { Project } from '../../types';
 
 interface EditProjectModalProps {
   project: Project | null

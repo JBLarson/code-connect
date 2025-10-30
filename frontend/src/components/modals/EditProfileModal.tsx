@@ -1,18 +1,7 @@
 import { useState, useEffect } from 'react'
 import api from '../../services/api'
 import '../../styles/modal.css'
-
-interface UserProfile {
-  id: string
-  role: 'developer' | 'idea_generator' | 'both'
-  name: string | null
-  location: string | null
-  bio: string | null
-  skills: string[]
-  github_url: string | null
-  linkedin_url: string | null
-  created_at: string
-}
+import type { UserProfile } from '../../types';
 
 interface EditProfileModalProps {
   profile: UserProfile | null
@@ -28,7 +17,8 @@ export default function EditProfileModal({ profile, onClose, onSave }: EditProfi
     bio: profile?.bio || '',
     skills: profile?.skills || [],
     github_url: profile?.github_url || '',
-    linkedin_url: profile?.linkedin_url || ''
+    linkedin_url: profile?.linkedin_url || '',
+    contact_email: profile?.contact_email || '' // <-- NEW
   })
   const [skillInput, setSkillInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -126,6 +116,23 @@ export default function EditProfileModal({ profile, onClose, onSave }: EditProfi
               className="input"
               placeholder="Your name"
             />
+          </div>
+
+          {/* NEW Contact Email Field */}
+          <div className="form-group">
+            <label htmlFor="contact_email">Contact Email</label>
+            <input
+              type="email"
+              id="contact_email"
+              name="contact_email"
+              value={formData.contact_email}
+              onChange={handleChange}
+              className="input"
+              placeholder="your@email.com"
+            />
+            <small className="form-help">
+              This will be shared with project owners after they accept your interest.
+            </small>
           </div>
 
           <div className="form-group">

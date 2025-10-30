@@ -16,6 +16,7 @@ class UserProfile(db.Model):
     skills = db.Column(JSONB)  # ['Python', 'React', etc.]
     github_url = db.Column(db.String(255))
     linkedin_url = db.Column(db.String(255))
+    contact_email = db.Column(db.String(255)) # <-- NEW: User-provided contact email
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -23,8 +24,12 @@ class UserProfile(db.Model):
     created_projects = db.relationship('Project', back_populates='creator', lazy='dynamic')
     interests = db.relationship('Interest', back_populates='developer', lazy='dynamic')
     
-    def to_dict(self):
-        return {
+    def to_dict(self, include_contact=False):
+        """
+        Convert to dictionary.
+        Only include contact_email if include_contact is True.
+        """
+        data = {
             'id': str(self.id),
             'role': self.role,
             'name': self.name,
@@ -35,6 +40,11 @@ class UserProfile(db.Model):
             'linkedin_url': self.linkedin_url,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
+        
+        if include_contact:
+            data['contact_email'] = self.contact_email
+            
+        return data
 
 
 class Project(db.Model):
@@ -57,7 +67,11 @@ class Project(db.Model):
     creator = db.relationship('UserProfile', back_populates='created_projects')
     interests = db.relationship('Interest', back_populates='project', cascade='all, delete-orphan')
     
-    def to_dict(self, include_creator=False):
+    def to_dict(self, include_creator=False, include_creator_contact=False):
+        """
+        Convert to dictionary.
+        include_creator_contact determines if the creator's contact info is included.
+        """
         data = {
             'id': self.id,
             'title': self.title,
@@ -71,7 +85,7 @@ class Project(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
         if include_creator and self.creator:
-            data['creator'] = self.creator.to_dict()
+            data['creator'] = self.creator.to_dict(include_contact=include_creator_contact)
         return data
 
 
@@ -94,7 +108,11 @@ class Interest(db.Model):
         db.UniqueConstraint('project_id', 'developer_id', name='unique_project_developer'),
     )
     
-    def to_dict(self, include_project=False, include_developer=False):
+    def to_dict(self, include_project=False, include_developer=False, include_project_contact=False, include_developer_contact=False):
+        """
+        Convert to dictionary.
+        Conditionally include project and developer details, including contact info.
+        """
         data = {
             'id': self.id,
             'project_id': self.project_id,
@@ -104,7 +122,7 @@ class Interest(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
         if include_project and self.project:
-            data['project'] = self.project.to_dict()
+            data['project'] = self.project.to_dict(include_creator=True, include_creator_contact=include_project_contact)
         if include_developer and self.developer:
-            data['developer'] = self.developer.to_dict()
+            data['developer'] = self.developer.to_dict(include_contact=include_developer_contact)
         return data

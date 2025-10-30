@@ -74,7 +74,14 @@ def get_project_interests(project_id):
         
         interests = Interest.query.filter_by(project_id=project_id).order_by(desc(Interest.created_at)).all()
         
-        return jsonify([i.to_dict(include_developer=True) for i in interests]), 200
+        # NEW: Conditionally include developer contact info
+        interests_data = []
+        for i in interests:
+            # Only include contact info if the interest has been accepted
+            include_contact = i.status == 'accepted'
+            interests_data.append(i.to_dict(include_developer=True, include_developer_contact=include_contact))
+            
+        return jsonify(interests_data), 200
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -87,7 +94,14 @@ def get_my_interests():
     try:
         interests = Interest.query.filter_by(developer_id=request.user_id).order_by(desc(Interest.created_at)).all()
         
-        return jsonify([i.to_dict(include_project=True) for i in interests]), 200
+        # NEW: Conditionally include project creator contact info
+        interests_data = []
+        for i in interests:
+            # Only include contact info if the interest has been accepted
+            include_contact = i.status == 'accepted'
+            interests_data.append(i.to_dict(include_project=True, include_project_contact=include_contact))
+
+        return jsonify(interests_data), 200
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -119,7 +133,9 @@ def update_interest_status(interest_id):
         
         db.session.commit()
         
-        return jsonify(interest.to_dict(include_developer=True)), 200
+        # NEW: Conditionally include developer contact info
+        include_contact = interest.status == 'accepted'
+        return jsonify(interest.to_dict(include_developer=True, include_developer_contact=include_contact)), 200
     
     except Exception as e:
         db.session.rollback()
@@ -161,9 +177,11 @@ def check_interest(project_id):
         ).first()
         
         if interest:
+            # NEW: Conditionally include project creator contact info
+            include_contact = interest.status == 'accepted'
             return jsonify({
                 'has_interest': True,
-                'interest': interest.to_dict()
+                'interest': interest.to_dict(include_project_contact=include_contact)
             }), 200
         else:
             return jsonify({'has_interest': False}), 200

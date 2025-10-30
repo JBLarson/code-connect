@@ -7,24 +7,7 @@ import api from '../services/api'
 import EditProjectModal from '../components/modals/EditProjectModal'
 import '../styles/projects.css' // We use projects.css now
 
-// This interface is from the old Projects.tsx
-interface Project {
-  id: number
-  title: string
-  description: string
-  tech_stack: string[]
-  location: string
-  skill_level: string
-  time_commitment: string
-  status: string
-  repo_url?: string
-  created_at: string
-  creator?: {
-    id: string
-    name: string
-    location: string
-  }
-}
+import type { Project } from '../types';
 
 export default function Home() {
   const { user } = useAuth()

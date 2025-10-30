@@ -1,32 +1,17 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import api from '../services/api'
 import EditProfileModal from '../components/modals/EditProfileModal'
 import '../styles/profile.css'
+import type { Project, UserProfile } from '../types';
 
-interface UserProfile {
-  id: string
-  role: 'developer' | 'idea_generator' | 'both'
-  name: string | null
-  location: string | null
-  bio: string | null
-  skills: string[]
-  github_url: string | null
-  linkedin_url: string | null
-  created_at: string
-}
-
-interface Project {
+// NEW: Interface for MyInterests
+interface MyInterest {
   id: number
-  title: string
-  description: string
-  tech_stack: string[]
-  location: string
-  skill_level: string
-  time_commitment: string
-  status: string
+  status: 'pending' | 'accepted' | 'declined'
   created_at: string
+  project: Project // This will include the project and its creator
 }
 
 export default function Profile() {
@@ -35,18 +20,24 @@ export default function Profile() {
   const navigate = useNavigate()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
+  const [myInterests, setMyInterests] = useState<MyInterest[]>([]) // <-- NEW STATE
   const [loading, setLoading] = useState(true)
   const [projectsLoading, setProjectsLoading] = useState(true)
+  const [interestsLoading, setInterestsLoading] = useState(true) // <-- NEW STATE
   const [error, setError] = useState<string | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
 
-  // Determine if viewing own profile or someone else's
   const isOwnProfile = !id || (user && id === user.id)
 
   useEffect(() => {
     fetchProfile()
     fetchUserProjects()
-  }, [id])
+    
+    // If it's our profile, fetch our interests
+    if (isOwnProfile) {
+      fetchMyInterests()
+    }
+  }, [id, user, isOwnProfile]) // Added isOwnProfile dependency
 
   const fetchProfile = async () => {
     try {
@@ -85,6 +76,19 @@ export default function Profile() {
       console.error('Error fetching user projects:', err)
     } finally {
       setProjectsLoading(false)
+    }
+  }
+
+  // NEW: Function to fetch user's own interests
+  const fetchMyInterests = async () => {
+    try {
+      setInterestsLoading(true)
+      const response = await api.get('/api/interests/my-interests')
+      setMyInterests(response.data)
+    } catch (err) {
+      console.error('Error fetching my interests:', err)
+    } finally {
+      setInterestsLoading(false)
     }
   }
 
@@ -137,6 +141,16 @@ export default function Profile() {
       case 'in_progress': return 'status-progress'
       case 'completed': return 'status-completed'
       case 'cancelled': return 'status-cancelled'
+      default: return ''
+    }
+  }
+
+  // NEW: Helper for interest status
+  const getInterestStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'interest-pending'
+      case 'accepted': return 'interest-accepted'
+      case 'declined': return 'interest-declined'
       default: return ''
     }
   }
@@ -238,6 +252,69 @@ export default function Profile() {
                   <span key={idx} className="skill-tag">{skill}</span>
                 ))}
               </div>
+            </section>
+          )}
+
+          {/* NEW "MY INTERESTS" SECTION */}
+          {isOwnProfile && (profile.role === 'developer' || profile.role === 'both') && (
+            <section className="profile-section">
+              <h3>My Interests</h3>
+              {interestsLoading ? (
+                <p className="text-muted">Loading interests...</p>
+              ) : myInterests.length === 0 ? (
+                <p className="text-muted">
+                  You haven't expressed interest in any projects yet. 
+                  <Link to="/"> Browse projects</Link> to get started.
+                </p>
+              ) : (
+                <div className="interests-grid">
+                  {myInterests.map(interest => (
+                    <article key={interest.id} className="interest-card-profile">
+                      <div className="interest-card-profile-header">
+                        <Link to={`/projects/${interest.project.id}`} className="interest-project-title">
+                          {interest.project.title}
+                        </Link>
+                        <span className={`badge-small ${getInterestStatusColor(interest.status)}`}>
+                          {formatStatus(interest.status)}
+                        </span>
+                      </div>
+                      
+                      {/* THE CORE LOOP: REVEAL CONTACT INFO ON ACCEPT */}
+                      {interest.status === 'accepted' && (
+                        <div className="contact-reveal-box">
+                          <strong>Connection made!</strong>
+                          <p>Contact the project owner to get started:</p>
+                          <div className="contact-links">
+                            {interest.project.creator?.contact_email && (
+                              <a href={`mailto:${interest.project.creator.contact_email}`}>
+                                📧 {interest.project.creator.contact_email}
+                              </a>
+                            )}
+                            {interest.project.creator?.linkedin_url && (
+                              <a href={interest.project.creator.linkedin_url} target="_blank" rel="noopener noreferrer">
+                                🔗 LinkedIn
+                              </a>
+                            )}
+                            {interest.project.creator?.github_url && (
+                              <a href={interest.project.creator.github_url} target="_blank" rel="noopener noreferrer">
+                                🔗 GitHub
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {interest.status === 'pending' && (
+                        <p className="text-muted small">Your interest is pending review by the project owner.</p>
+                      )}
+
+                      {interest.status === 'declined' && (
+                        <p className="text-muted small">Your interest was declined for this project.</p>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              )}
             </section>
           )}
 

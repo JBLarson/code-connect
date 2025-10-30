@@ -5,39 +5,7 @@ import api from '../services/api'
 import EditProjectModal from '../components/modals/EditProjectModal'
 import ExpressInterestModal from '../components/modals/ExpressInterestModal'
 import '../styles/project-detail.css'
-
-interface Project {
-  id: number
-  title: string
-  description: string
-  tech_stack: string[]
-  location: string
-  skill_level: string
-  time_commitment: string
-  status: string
-  repo_url?: string
-  created_at: string
-  interest_count?: number
-  creator?: {
-    id: string
-    name: string
-    location: string
-  }
-}
-
-interface Interest {
-  id: number
-  developer_id: string
-  message: string
-  status: string
-  created_at: string
-  developer?: {
-    id: string
-    name: string
-    location: string
-    skills: string[]
-  }
-}
+import type { Interest, Project, UserProfile } from '../types';
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>()
@@ -105,16 +73,17 @@ export default function ProjectDetail() {
   }
 
   const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to delete this project?')) {
+    // Replaced window.confirm with a simple confirm
+    if (!confirm('Are you sure you want to delete this project?')) {
       return
     }
 
     try {
       await api.delete(`/api/projects/${id}`)
-      navigate('/projects')
+      navigate('/') // Navigate to home now
     } catch (err) {
-      alert('Failed to delete project')
       console.error('Error deleting project:', err)
+      alert('Failed to delete project') // Use alert for errors
     }
   }
 
@@ -133,7 +102,7 @@ export default function ProjectDetail() {
   }
 
   const handleWithdrawInterest = async () => {
-    if (!userInterest || !window.confirm('Are you sure you want to withdraw your interest?')) {
+    if (!userInterest || !confirm('Are you sure you want to withdraw your interest?')) {
       return
     }
 
@@ -143,18 +112,23 @@ export default function ProjectDetail() {
       setUserInterest(null)
       fetchProject() // Refresh to update interest count
     } catch (err) {
-      alert('Failed to withdraw interest')
       console.error('Error withdrawing interest:', err)
+      alert('Failed to withdraw interest')
     }
   }
 
   const handleUpdateInterestStatus = async (interestId: number, status: string) => {
     try {
-      await api.put(`/api/interests/${interestId}`, { status })
-      fetchProjectInterests() // Refresh interests list
+      // The response data will contain the developer's contact info if status is 'accepted'
+      const response = await api.put(`/api/interests/${interestId}`, { status })
+      
+      // Update the interest in our local state with the new data
+      setInterests(prevInterests => 
+        prevInterests.map(i => i.id === interestId ? response.data : i)
+      )
     } catch (err) {
-      alert('Failed to update interest status')
       console.error('Error updating interest:', err)
+      alert('Failed to update interest status')
     }
   }
 
@@ -171,7 +145,7 @@ export default function ProjectDetail() {
       <div className="container">
         <div className="error-state">
           {error || 'Project not found'}
-          <button onClick={() => navigate('/projects')} className="btn btn-secondary">
+          <button onClick={() => navigate('/')} className="btn btn-secondary">
             Back to Projects
           </button>
         </div>
@@ -294,7 +268,7 @@ export default function ProjectDetail() {
                         <p className="text-muted">The project owner will review your interest soon.</p>
                       )}
                       {userInterest?.status === 'accepted' && (
-                        <p className="text-success">Congratulations! Your interest was accepted. The project owner should reach out to you soon.</p>
+                        <p className="text-success">Congratulations! Your interest was accepted. Check your profile page for contact info.</p>
                       )}
                       {userInterest?.status === 'declined' && (
                         <p className="text-muted">Your interest was declined. Feel free to browse other projects!</p>
@@ -321,7 +295,7 @@ export default function ProjectDetail() {
               </div>
             )}
 
-            {isOwner && interests.length > 0 && (
+            {isOwner && (
               <div className="interests-list-section">
                 <div className="interests-header">
                   <h2>Interested Developers ({interests.length})</h2>
@@ -335,6 +309,7 @@ export default function ProjectDetail() {
 
                 {showInterests && (
                   <div className="interests-list">
+                    {interests.length === 0 && <p className="text-muted">No one has expressed interest yet.</p>}
                     {interests.map(interest => (
                       <div key={interest.id} className="interest-card">
                         <div className="interest-card-header">
@@ -371,6 +346,31 @@ export default function ProjectDetail() {
                           </div>
                         )}
 
+                        {/* THE CORE LOOP: REVEAL CONTACT INFO ON ACCEPT */}
+                        {interest.status === 'accepted' && (
+                          <div className="contact-reveal-box">
+                            <strong>Connection made!</strong>
+                            <p>Contact the developer to get them started:</p>
+                            <div className="contact-links">
+                              {interest.developer?.contact_email && (
+                                <a href={`mailto:${interest.developer.contact_email}`}>
+                                  📧 {interest.developer.contact_email}
+                                </a>
+                              )}
+                              {interest.developer?.linkedin_url && (
+                                <a href={interest.developer.linkedin_url} target="_blank" rel="noopener noreferrer">
+                                  🔗 LinkedIn
+                                </a>
+                              )}
+                              {interest.developer?.github_url && (
+                                <a href={interest.developer.github_url} target="_blank" rel="noopener noreferrer">
+                                  🔗 GitHub
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
                         {interest.status === 'pending' && (
                           <div className="interest-actions">
                             <button 
@@ -410,7 +410,7 @@ export default function ProjectDetail() {
                 <dd>⏱️ {project.time_commitment}</dd>
 
                 <dt>Skill Level</dt>
-                <dd>📊 {project.skill_level}</dd>
+                <dd>🎓 {project.skill_level}</dd>
 
                 <dt>Posted</dt>
                 <dd>📅 {new Date(project.created_at).toLocaleDateString()}</dd>
