@@ -1,8 +1,13 @@
+// frontend/src/pages/Home.tsx
+
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
+import EditProjectModal from '../components/modals/EditProjectModal'
+import '../styles/projects.css' // We use projects.css now
 
+// This interface is from the old Projects.tsx
 interface Project {
   id: number
   title: string
@@ -11,7 +16,14 @@ interface Project {
   location: string
   skill_level: string
   time_commitment: string
+  status: string
+  repo_url?: string
   created_at: string
+  creator?: {
+    id: string
+    name: string
+    location: string
+  }
 }
 
 export default function Home() {
@@ -19,15 +31,30 @@ export default function Home() {
   const navigate = useNavigate()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
+  const [showCreateModal, setShowCreateModal] = useState(false)
   const [filter, setFilter] = useState({ location: '', skill_level: '' })
 
+  // Fetch projects when component mounts
   useEffect(() => {
     fetchProjects()
   }, [])
 
+  // Re-fetch projects when filters change (Backend Filtering)
+  useEffect(() => {
+    fetchProjects()
+  }, [filter])
+
   const fetchProjects = async () => {
     try {
-      const response = await api.get('/projects')
+      setLoading(true)
+      // Pass filters to the API
+      const response = await api.get('/api/projects', {
+        params: {
+          location: filter.location || undefined,
+          skill_level: filter.skill_level || undefined,
+          status: 'open' // Default to showing 'open' projects
+        }
+      })
       setProjects(response.data)
     } catch (error) {
       console.error('Failed to fetch projects:', error)
@@ -36,36 +63,54 @@ export default function Home() {
     }
   }
 
-  const filteredProjects = projects.filter(project => {
-    if (filter.location && !project.location.toLowerCase().includes(filter.location.toLowerCase())) {
-      return false
+  const handleProjectSaved = (savedProject: Project) => {
+    // Add new project to the list or update existing
+    setProjects(prev => {
+      const exists = prev.find(p => p.id === savedProject.id)
+      if (exists) {
+        return prev.map(p => p.id === savedProject.id ? savedProject : p)
+      } else {
+        // Add new projects to the top
+        return [savedProject, ...prev]
+      }
+    })
+    setShowCreateModal(false)
+  }
+  
+  // Helper function from Projects.tsx
+  const getSkillLevelColor = (level: string) => {
+    switch (level) {
+      case 'beginner': return 'skill-beginner'
+      case 'intermediate': return 'skill-intermediate'
+      case 'advanced': return 'skill-advanced'
+      default: return ''
     }
-    if (filter.skill_level && project.skill_level !== filter.skill_level) {
-      return false
-    }
-    return true
-  })
+  }
 
   return (
     <div className="container">
-      <header className="hero">
-        <h1>Code Connect</h1>
-        <p className="tagline">
-          Where ideas meet talent. Connect with developers, build meaningful projects.
-        </p>
-        {!user && (
-          <div className="cta-buttons">
-          <button onClick={() => navigate('/auth')} className="btn btn-primary">
-            Get Started
-          </button>          </div>
+      {/* Header from Projects.tsx */}
+      <header className="projects-header">
+        <div>
+          <h1>Projects</h1>
+          <p className="subtitle">Browse open source projects looking for contributors</p>
+        </div>
+        {user && (
+          <button 
+            onClick={() => setShowCreateModal(true)} 
+            className="btn btn-primary"
+          >
+            + Create Project
+          </button>
         )}
       </header>
 
+      {/* Filters (unchanged) */}
       <section className="filters">
         <div className="filter-group">
           <input
             type="text"
-            placeholder="Filter by location..."
+            placeholder="Filter by location (e.g., 'Orange, CA' or 'Remote')"
             value={filter.location}
             onChange={(e) => setFilter({ ...filter, location: e.target.value })}
             className="input"
@@ -83,43 +128,70 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="projects">
-        {loading ? (
-          <div className="loading">Loading projects...</div>
-        ) : filteredProjects.length === 0 ? (
-          <div className="empty-state">
-            <p>No projects found. Be the first to post one!</p>
-            {user && (
-              <button onClick={() => navigate('/create')} className="btn btn-secondary">
-                Create Project
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="project-grid">
-            {filteredProjects.map(project => (
-              <article key={project.id} className="card project-card" onClick={() => navigate(`/projects/${project.id}`)}>
-                <div className="card-header">
-                  <h3>{project.title}</h3>
-                  <span className="badge">{project.skill_level}</span>
+      {/* Project Grid from Projects.tsx */}
+      {loading ? (
+        <div className="loading">Loading projects...</div>
+      ) : projects.length === 0 ? (
+        <div className="empty-state">
+          <p>No projects found. {user ? 'Be the first to create one!' : 'Sign in to create projects.'}</p>
+          {user && (
+            <button onClick={() => setShowCreateModal(true)} className="btn btn-primary">
+              Create Project
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="projects-grid">
+          {/* Note: using 'projects' directly, not 'filteredProjects' */}
+          {projects.map(project => (
+            <article 
+              key={project.id} 
+              className="project-card"
+              onClick={() => navigate(`/projects/${project.id}`)}
+            >
+              <div className="project-card-header">
+                <h3>{project.title}</h3>
+                <span className={`badge ${getSkillLevelColor(project.skill_level)}`}>
+                  {project.skill_level}
+                </span>
+            _</div>
+
+              <p className="project-description">{project.description}</p>
+
+              <div className="tech-stack">
+                {project.tech_stack.slice(0, 5).map((tech, idx) => (
+                  <span key={idx} className="tech-tag">{tech}</span>
+                ))}
+                {project.tech_stack.length > 5 && (
+                  <span className="tech-tag">+{project.tech_stack.length - 5}</span>
+               )}
+              </div>
+
+              <div className="project-meta">
+                <div className="meta-row">
+                  <span>📍 {project.location || 'Remote'}</span>
+                  <span>⏱️ {project.time_commitment}</span>
                 </div>
-                <p className="description">{project.description.slice(0, 150)}...</p>
-                <div className="card-meta">
-                  <div className="tech-stack">
-                    {project.tech_stack.slice(0, 3).map((tech, idx) => (
-                      <span key={idx} className="tech-tag">{tech}</span>
-                    ))}
+                {project.creator && (
+                  <div className="creator-info">
+                    <span className="creator-label">Posted by</span>
+                    <span className="creator-name">{project.creator.name || 'Anonymous'}</span>
                   </div>
-                  <div className="meta-info">
-                    <span className="location">📍 {project.location}</span>
-                    <span className="commitment">⏱️ {project.time_commitment}</span>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {/* Modal from Projects.tsx */}
+      {showCreateModal && (
+        <EditProjectModal
+          project={null}
+          onClose={() => setShowCreateModal(false)}
+          onSave={handleProjectSaved}
+        />
+      )}
     </div>
   )
 }

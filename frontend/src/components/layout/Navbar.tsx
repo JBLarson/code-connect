@@ -20,9 +20,6 @@ export default function Navbar() {
         </div>
 
         <div className="navbar-links">
-          <button onClick={() => navigate('/projects')} className="nav-link">
-            Projects
-          </button>
 
           {user ? (
             <>

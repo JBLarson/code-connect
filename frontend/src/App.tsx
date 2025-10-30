@@ -4,7 +4,6 @@ import Navbar from './components/layout/Navbar'
 import Home from './pages/Home'
 import Auth from './pages/Auth'
 import Profile from './pages/Profile'
-import Projects from './pages/Projects'
 import ProjectDetail from './pages/ProjectDetail'
 
 function App() {
@@ -22,8 +21,6 @@ function App() {
           <Route path="/profile" element={<Profile />} />
           
           <Route path="/profile/:id" element={<Profile />} />
-
-          <Route path="/projects" element={<Projects />} />
 
           <Route path="/projects/:id" element={<ProjectDetail />} />
 
